@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Parser</title>
+    <!-- TASK 2: Add favicon link -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="glass-card" id="upload-card">
+            <h1>Resume Parser</h1>
+            <p class="subtitle">Upload a PDF for a strict, AI-powered profile analysis</p>
+            
+            <form id="upload-form">
+                <label for="resume">Upload Resume</label>
+                <div class="file-upload-wrapper" id="drop-zone">
+                    <input type="file" id="resume" name="resume" accept=".pdf" required>
+                    <p><strong>Click to browse</strong> or drag and drop your PDF here.</p>
+                </div>
+                <p id="file-name"></p>
+
+                <label for="job-description">Target Job Description (Optional)</label>
+                <textarea id="job-description" name="job_description" rows="6" 
+                          placeholder="For a detailed analysis and match score, paste the job description here..."></textarea>
+                <p class="hint-text">Leave empty for a general profile review.</p>
+            </form>
+        </div>
+
+        <div id="loader"></div>
+
+        <div class="glass-card" id="results-container">
+            <h2>Extraction Results</h2>
+            <div class="results-grid">
+                <div class="result-item" id="summary-card">
+                    <h3>Profile Summary</h3>
+                    <p id="result-summary">...</p>
+                </div>
+                <!-- New Scoring Reasoning Card -->
+                <div class="result-item" id="reasoning-card">
+                    <h3>Scoring Reasoning</h3>
+                    <p id="result-reasoning">...</p>
+                </div>
+                <div class="result-item" id="name-card">
+                    <h3>Name</h3>
+                    <p id="result-name">...</p>
+                </div>
+                <div class="result-item" id="email-card">
+                    <h3>Email</h3>
+                    <p id="result-email">...</p>
+                </div>
+                <div class="result-item" id="phone-card">
+                    <h3>Phone</h3>
+                    <p id="result-phone">...</p>
+                </div>
+                <div class="result-item" id="education-card">
+                    <h3>Education</h3>
+                    <p id="result-education">...</p>
+                </div>
+                 <div class="result-item" id="skills-card">
+                    <h3>Skills</h3>
+                    <ul id="result-skills"></ul>
+                </div>
+                <div class="result-item" id="ats-score-card">
+                    <h3>Match Score</h3>
+                    <div class="ats-score-display">
+                        <svg>
+                            <circle class="bg-circle" cx="75" cy="75" r="70"></circle>
+                            <circle id="ats-progress-circle" class="progress-circle" cx="75" cy="75" r="70"></circle>
+                        </svg>
+                        <div id="result-ats-score" class="score">0%</div>
+                    </div>
+                </div>
+                <!-- Missing Keywords will be dynamically added here by JS -->
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
