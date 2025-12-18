@@ -1,6 +1,6 @@
-# 🧠 Resume Parser with ATS Scoring and Skill Search
+# 🧠 AI-Powered Universal Resume Parser
 
-A smart, user-friendly Resume Parser web application that extracts key candidate information from uploaded resumes, evaluates their ATS (Applicant Tracking System) score, and allows sorting and filtering based on skills. Built with HTML, CSS, JavaScript, and Python (Flask) for a seamless full-stack experience.
+A next-generation Resume Parser that moves beyond simple keyword counting. This application uses **Large Language Models (Google Gemini 2.5 Flash)** to perform semantic analysis, auto-detect job roles, and evaluate candidates using a strict **"Gap Analysis"** scoring protocol.
 
 ## 🌐 Live Demo
 
@@ -8,49 +8,34 @@ A smart, user-friendly Resume Parser web application that extracts key candidate
 
 ---
 
-## 🚀 Features
+### 🚀 Key Features
 
-- 📥 **Upload Multiple Resumes** – Drag-and-drop or select multiple PDF resumes for batch parsing.
-- 🧠 **Resume Parsing** – Automatically extracts name, email, phone, skills, experience, and more using NLP techniques.
-- 📊 **ATS Score Calculation** – Evaluates resumes based on keyword relevance and formatting.
-- 🧹 **Missing Field Handling** – Leaves fields like email or skills empty if not found instead of crashing or faking data.
-- 🔍 **Skill-Based Search** – Instantly filter resumes by specific technical or soft skills.
-- 🔢 **ATS Score Sorting** – Sort resumes in descending order based on ATS scores for easy comparison.
-- 📱 **Responsive UI** – Clean and intuitive layout for both desktop and mobile devices.
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend:
-- HTML5, CSS3
-- Vanilla JavaScript (no frameworks)
-- Dynamic DOM rendering and event handling
-
-### Backend:
-- Python 3.x
-- Flask (for API and resume parsing)
-- `pdfplumber`, `PyMuPDF`, `re`, and NLP libraries (like spaCy or similar)
+* **🤖 AI-Driven Semantic Analysis** – Uses Gemini 1.5 Flash to understand context (e.g., recognizing that "ReactJS" and "React.js" are the same, or that "Principal Engineer" implies leadership).
+* **🎯 Universal Role Detection** – Automatically infers the candidate's target role (e.g., "Full Stack Dev", "Digital Marketer") from the resume content if no Job Description is provided.
+* **⚖️ Strict "Gap Analysis" Scoring** – Unlike traditional ATS that *adds* points for keywords, this system starts at **100** and *deducts* points for:
+    * **Critical Skill Gaps (-25 pts):** Missing foundational skills (e.g., SQL for a Backend Dev).
+    * **Experience Gaps (-10 pts):** Vague bullet points lacking quantifiable metrics.
+    * **Formatting Issues (-5 pts):** Messy layouts or missing contact info.
+* **📄 PDF Intelligence** – Utilizes `pdfplumber` to accurately extract text from complex, multi-column resume layouts.
+* **🎨 Glassmorphism UI** – A clean, modern, and responsive user interface.
 
 ---
 
-## 📁 Folder Structure
+### 🛠️ Tech Stack
 
-```
-resume-parser/
-│
-├── static/
-│   ├── css/
-│   └── js/
-├── templates/
-│   └── index.html
-├── uploads/
-│   └── [temporary uploaded resumes]
-├── app.py
-├── parser.py
-├── requirements.txt
-└── README.md
-```
+**Frontend:**
+* HTML5, CSS3 (Custom Glassmorphism Design)
+* Vanilla JavaScript (Fetch API for asynchronous data handling)
+
+**Backend:**
+* **Python 3.10+**
+* **Flask** (Micro-web framework)
+* **Google Gemini API (1.5 Flash)** (The intelligence engine)
+* **pdfplumber** (For robust PDF text extraction)
+
+**Deployment:**
+* **Render** (Cloud Hosting)
+* **Gunicorn** (Production Server)
 
 ---
 
@@ -62,26 +47,34 @@ git clone https://github.com/your-username/resume-parser.git
 cd resume-parser
 ```
 
-2. **Install dependencies**
+2. **Create a Virtual Environment**
+```bash
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+```
+
+3. **Install Dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Run the Flask app**
-```bash
-python app.py
+4. **Set up Environment Variables Create a .env file in the root directory and add your Google Gemini API Key:**
+```
+GEMINI_API_KEY=your_actual_api_key_here
 ```
 
-4. **Open in browser**
+5. **Run the Application**
 ```
-http://localhost:5000
+python app.py
 ```
 
 
 ## 🧪 Upcoming Improvements
 
 - 🗂️ Export parsed data to CSV or Excel
-- 🧠 AI-based keyword match scoring (Job-Resume fit)
 - 🔐 User authentication and dashboard
 - 📦 Resume parser API for third-party integration
 
