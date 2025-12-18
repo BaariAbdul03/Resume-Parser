@@ -30,7 +30,7 @@ A next-generation Resume Parser that moves beyond simple keyword counting. This 
 **Backend:**
 * **Python 3.10+**
 * **Flask** (Micro-web framework)
-* **Google Gemini API (1.5 Flash)** (The intelligence engine)
+* **Google Gemini API (2.5 Flash)** (The intelligence engine)
 * **pdfplumber** (For robust PDF text extraction)
 
 **Deployment:**
