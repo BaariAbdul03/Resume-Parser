@@ -10,7 +10,7 @@ A next-generation Resume Parser that moves beyond simple keyword counting. This 
 
 ### 🚀 Key Features
 
-* **🤖 AI-Driven Semantic Analysis** – Uses Gemini 1.5 Flash to understand context (e.g., recognizing that "ReactJS" and "React.js" are the same, or that "Principal Engineer" implies leadership).
+* **🤖 AI-Driven Semantic Analysis** – Uses Gemini 2.5 Flash to understand context (e.g., recognizing that "ReactJS" and "React.js" are the same, or that "Principal Engineer" implies leadership).
 * **🎯 Universal Role Detection** – Automatically infers the candidate's target role (e.g., "Full Stack Dev", "Digital Marketer") from the resume content if no Job Description is provided.
 * **⚖️ Strict "Gap Analysis" Scoring** – Unlike traditional ATS that *adds* points for keywords, this system starts at **100** and *deducts* points for:
     * **Critical Skill Gaps (-25 pts):** Missing foundational skills (e.g., SQL for a Backend Dev).
