@@ -59,7 +59,6 @@ def test_gemini_resiliency_backoff_success(gemini_service):
         "scoring_reasoning": "Started at 100. Deducted 10 for vague metrics. Final: 90."
     })
     
-    mock_model = MagicMock()
     # Mocking _call to throw exception twice, then return success on 3rd attempt
     mock_call = MagicMock(side_effect=[
         GoogleAPIError("Quota exceeded"),
