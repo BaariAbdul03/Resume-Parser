@@ -137,8 +137,8 @@ def _clean_json_response(text: str) -> dict:
 class GroqService:
     """Groq-backed resume analysis using Llama 4 Scout with JSON mode."""
 
-    PRIMARY_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-    FALLBACK_MODEL = "llama3-70b-8192"
+    PRIMARY_MODEL = "llama-3.3-70b-versatile"
+    FALLBACK_MODEL = "llama-3.1-8b-instant"
 
     def __init__(self):
         self._client = None

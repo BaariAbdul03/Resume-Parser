@@ -112,9 +112,9 @@
 
                             <!-- Job Description Text -->
                             <div class="form-group" style="margin-top: 1rem;">
-                                <label class="form-label" for="jd-textarea" style="font-size: 0.75rem; margin-bottom: 0.35rem;">Target Criteria / Job Description</label>
+                                <label class="form-label" for="jd-textarea" style="font-size: 0.75rem; margin-bottom: 0.35rem;">Target Criteria / Job Description (Optional — leave blank to infer role)</label>
                                 <div class="textarea-container">
-                                    <textarea id="jd-textarea" name="job_description" class="jd-textarea" style="min-height: 160px; padding: 0.75rem; font-size: 0.85rem;" placeholder="Paste expectations, requirements or core qualifications here..."></textarea>
+                                    <textarea id="jd-textarea" name="job_description" class="jd-textarea" style="min-height: 160px; padding: 0.75rem; font-size: 0.85rem;" placeholder="Paste expectations, requirements or qualifications, or leave blank to automatically infer the target role from the candidate's CV..."></textarea>
                                     <span class="char-counter" id="char-counter" style="bottom: 0.5rem; right: 0.75rem; font-size: 0.7rem;">0/5,000</span>
                                 </div>
                                 {% if current_user.is_authenticated %}

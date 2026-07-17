@@ -280,27 +280,64 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 
                 const scoreColor = item.match_percentage >= 80 ? "#10b981" : (item.match_percentage >= 50 ? "#f59e0b" : "#ef4444");
+                const textContainer = document.createElement("div");
+                textContainer.style.minWidth = "0";
+                textContainer.style.flex = "1";
                 
-                card.innerHTML = `
-                    <div style="min-width: 0; flex: 1;">
-                        <div style="font-weight: 600; font-size: 0.9rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${escapeHtml(item.name || "Unknown Candidate")}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.15rem;">
-                            ${escapeHtml(item.target_role || item.detected_role || "Inferred Role")}
-                        </div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span style="font-size: 0.85rem; font-weight: 700; color: ${scoreColor}; background: ${scoreColor}15; padding: 0.2rem 0.5rem; border-radius: 6px;">
-                            ${escapeHtml(item.match_percentage)}%
-                        </span>
-                        <button class="delete-archive-btn" style="background: none; border: none; color: #718096; cursor: pointer; padding: 0.25rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: var(--transition-smooth);">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                        </button>
-                    </div>
-                `;
+                const nameDiv = document.createElement("div");
+                nameDiv.style.fontWeight = "600";
+                nameDiv.style.fontSize = "0.9rem";
+                nameDiv.style.color = "white";
+                nameDiv.style.whiteSpace = "nowrap";
+                nameDiv.style.overflow = "hidden";
+                nameDiv.style.textOverflow = "ellipsis";
+                nameDiv.textContent = item.name || "Unknown Candidate";
                 
-                const deleteBtn = card.querySelector('.delete-archive-btn');
+                const roleDiv = document.createElement("div");
+                roleDiv.style.fontSize = "0.75rem";
+                roleDiv.style.color = "#718096";
+                roleDiv.style.whiteSpace = "nowrap";
+                roleDiv.style.overflow = "hidden";
+                roleDiv.style.textOverflow = "ellipsis";
+                roleDiv.style.marginTop = "0.15rem";
+                roleDiv.textContent = item.target_role || item.detected_role || "Inferred Role";
+                
+                textContainer.appendChild(nameDiv);
+                textContainer.appendChild(roleDiv);
+                
+                const rightContainer = document.createElement("div");
+                rightContainer.style.display = "flex";
+                rightContainer.style.alignItems = "center";
+                rightContainer.style.gap = "0.75rem";
+                
+                const scoreSpan = document.createElement("span");
+                scoreSpan.style.fontSize = "0.85rem";
+                scoreSpan.style.fontWeight = "700";
+                scoreSpan.style.color = scoreColor;
+                scoreSpan.style.background = scoreColor + "15";
+                scoreSpan.style.padding = "0.2rem 0.5rem";
+                scoreSpan.style.borderRadius = "6px";
+                scoreSpan.textContent = `${item.match_percentage || 0}%`;
+                
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "delete-archive-btn";
+                deleteBtn.style.background = "none";
+                deleteBtn.style.border = "none";
+                deleteBtn.style.color = "#718096";
+                deleteBtn.style.cursor = "pointer";
+                deleteBtn.style.padding = "0.25rem";
+                deleteBtn.style.display = "flex";
+                deleteBtn.style.alignItems = "center";
+                deleteBtn.style.justifyContent = "center";
+                deleteBtn.style.borderRadius = "6px";
+                deleteBtn.style.transition = "var(--transition-smooth)";
+                deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+                
+                rightContainer.appendChild(scoreSpan);
+                rightContainer.appendChild(deleteBtn);
+                
+                card.appendChild(textContainer);
+                card.appendChild(rightContainer);
                 deleteBtn.addEventListener("mouseenter", () => {
                     deleteBtn.style.color = "#ef4444";
                     deleteBtn.style.background = "rgba(239, 68, 68, 0.1)";
@@ -494,7 +531,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function validateForm() {
         const isFileLoaded = selectedFiles.length > 0;
         const jdLength = jdTextarea.value.trim().length;
-        const isJdValid = jdLength > 0 && jdLength <= 5000;
+        const isJdValid = jdLength <= 5000;
         
         analyzeBtn.disabled = !(isFileLoaded && isJdValid);
     }
@@ -628,30 +665,71 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 4.1 Demographic block
         candidateNameEl.textContent = data.name || "Not Found";
-        detectedRoleEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/></svg> ${escapeHtml(data.target_role || data.detected_role || "Inferred Role")}`;
         
-        emailEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> ${escapeHtml(data.email || "Not Found")}`;
-        phoneEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> ${escapeHtml(data.phone || "Not Found")}`;
+        detectedRoleEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/></svg> `;
+        const roleSpan = document.createElement("span");
+        roleSpan.textContent = data.target_role || data.detected_role || "Inferred Role";
+        detectedRoleEl.appendChild(roleSpan);
+        
+        emailEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> `;
+        const emailSpan = document.createElement("span");
+        emailSpan.textContent = data.email || "Not Found";
+        emailEl.appendChild(emailSpan);
+
+        phoneEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> `;
+        const phoneSpan = document.createElement("span");
+        phoneSpan.textContent = data.phone || "Not Found";
+        phoneEl.appendChild(phoneSpan);
 
         // GitHub & LinkedIn links
         const githubEl = document.getElementById("res-github");
         const linkedinEl = document.getElementById("res-linkedin");
+
+        const isSafeUrl = (urlStr, allowedDomain) => {
+            if (!urlStr) return false;
+            try {
+                const fullUrl = (urlStr.startsWith('http://') || urlStr.startsWith('https://')) ? urlStr : 'https://' + urlStr;
+                const parsed = new URL(fullUrl);
+                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+                const host = parsed.hostname.toLowerCase();
+                return host === allowedDomain || host.endsWith('.' + allowedDomain);
+            } catch (e) {
+                return false;
+            }
+        };
+
         if (githubEl) {
             const ghUrl = data.github_url || data.github || "";
-            if (ghUrl && ghUrl.toLowerCase() !== "not found" && ghUrl !== "") {
+            if (ghUrl && ghUrl.toLowerCase() !== "not found" && ghUrl !== "" && isSafeUrl(ghUrl, "github.com")) {
                 githubEl.style.display = "flex";
+                githubEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg> `;
                 const safeGhUrl = (ghUrl.startsWith('http://') || ghUrl.startsWith('https://')) ? ghUrl : 'https://' + ghUrl;
-                githubEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg> <a href="${escapeHtml(safeGhUrl)}" target="_blank" rel="noopener" style="color: #a0aec0; text-decoration: none;">${escapeHtml(ghUrl.replace('https://github.com/', '').replace('https://', ''))}</a>`;
+                const a = document.createElement("a");
+                a.href = safeGhUrl;
+                a.target = "_blank";
+                a.rel = "noopener";
+                a.style.color = "#a0aec0";
+                a.style.textDecoration = "none";
+                a.textContent = ghUrl.replace('https://github.com/', '').replace('https://', '');
+                githubEl.appendChild(a);
             } else {
                 githubEl.style.display = "none";
             }
         }
         if (linkedinEl) {
             const liUrl = data.linkedin_url || data.linkedin || "";
-            if (liUrl && liUrl.toLowerCase() !== "not found" && liUrl !== "") {
+            if (liUrl && liUrl.toLowerCase() !== "not found" && liUrl !== "" && isSafeUrl(liUrl, "linkedin.com")) {
                 linkedinEl.style.display = "flex";
+                linkedinEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg> `;
                 const safeLiUrl = (liUrl.startsWith('http://') || liUrl.startsWith('https://')) ? liUrl : 'https://' + liUrl;
-                linkedinEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg> <a href="${escapeHtml(safeLiUrl)}" target="_blank" rel="noopener" style="color: #a0aec0; text-decoration: none;">${escapeHtml(liUrl.replace('https://www.linkedin.com/in/', '').replace('https://', ''))}</a>`;
+                const a = document.createElement("a");
+                a.href = safeLiUrl;
+                a.target = "_blank";
+                a.rel = "noopener";
+                a.style.color = "#a0aec0";
+                a.style.textDecoration = "none";
+                a.textContent = liUrl.replace('https://www.linkedin.com/in/', '').replace('https://', '');
+                linkedinEl.appendChild(a);
             } else {
                 linkedinEl.style.display = "none";
             }
@@ -664,25 +742,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (edu && edu.toLowerCase() !== "not found") {
                     const pill = document.createElement("div");
                     pill.className = "education-pill";
-                    // Clean up education text for better readability
                     let cleanEdu = edu
-                        .replace(/[\[\(\{\s]*(\d+(?:\.\d+)?\s*%)[\]\)\}\s]*/g, ' $1 ') // Strip any enclosing braces/parentheses around percentages
-                        .replace(/([\[\(])\s*/g, ' ($1'.replace(/[\[\(]/g, ''))  // Normalize opening brackets
-                        .replace(/\s*([\]\)])\s*/g, ') ')  // Normalize closing brackets
-                        .replace(/—/g, ' — ')  // Add spaces around em-dashes
-                        .replace(/-/g, ' - ')   // Add spaces around hyphens
-                        .replace(/&/g, ' & ')   // Add spaces around ampersands
-                        .replace(/\s*,\s*/g, ', ')  // Normalize commas: no space before, one space after
-                        .replace(/\(\s*([^)]+)\s*\)/g, '($1)')  // Clean internal bracket spaces
-                        .replace(/\s{2,}/g, ' ')  // Collapse multiple spaces
+                        .replace(/[\[\(\{\s]*(\d+(?:\.\d+)?\s*%)[\]\)\}\s]*/g, ' $1 ')
+                        .replace(/([\[\(])\s*/g, ' ($1'.replace(/[\[\(]/g, ''))
+                        .replace(/\s*([\]\)])\s*/g, ') ')
+                        .replace(/—/g, ' — ')
+                        .replace(/-/g, ' - ')
+                        .replace(/&/g, ' & ')
+                        .replace(/\s*,\s*/g, ', ')
+                        .replace(/\(\s*([^)]+)\s*\)/g, '($1)')
+                        .replace(/\s{2,}/g, ' ')
                         .trim();
-                    pill.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg> ${escapeHtml(cleanEdu)}`;
+                    pill.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg> `;
+                    const eduSpan = document.createElement("span");
+                    eduSpan.textContent = cleanEdu;
+                    pill.appendChild(eduSpan);
                     educationContainer.appendChild(pill);
                 }
             });
         }
         if (educationContainer.children.length === 0) {
-            educationContainer.innerHTML = `<div class="contact-item">No Education records found.</div>`;
+            const noEdu = document.createElement("div");
+            noEdu.className = "contact-item";
+            noEdu.textContent = "No Education records found.";
+            educationContainer.appendChild(noEdu);
         }
 
         // 4.2 Score Radial Fill & Color Styling
@@ -1038,42 +1121,109 @@ document.addEventListener("DOMContentLoaded", () => {
             tr.addEventListener("mouseleave", () => tr.style.background = "none");
 
             if (item.error) {
-                tr.innerHTML = `
-                    <td style="padding: 1rem 0.75rem; text-align: center; color: #ef4444; font-weight: bold;">-</td>
-                    <td style="padding: 1rem 0.75rem; color: #a0aec0; font-family: monospace;">${escapeHtml(item.filename)}</td>
-                    <td style="padding: 1rem 0.75rem; color: #ef4444;" colspan="3">Failed: ${escapeHtml(item.error)}</td>
-                    <td style="padding: 1rem 0.75rem; text-align: center;">-</td>
-                `;
+                const td1 = document.createElement("td");
+                td1.style.padding = "1rem 0.75rem";
+                td1.style.textAlign = "center";
+                td1.style.color = "#ef4444";
+                td1.style.fontWeight = "bold";
+                td1.textContent = "-";
+
+                const td2 = document.createElement("td");
+                td2.style.padding = "1rem 0.75rem";
+                td2.style.color = "#a0aec0";
+                td2.style.fontFamily = "monospace";
+                td2.textContent = item.filename;
+
+                const td3 = document.createElement("td");
+                td3.style.padding = "1rem 0.75rem";
+                td3.style.color = "#ef4444";
+                td3.colSpan = 3;
+                td3.textContent = `Failed: ${item.error}`;
+
+                const td4 = document.createElement("td");
+                td4.style.padding = "1rem 0.75rem";
+                td4.style.textAlign = "center";
+                td4.textContent = "-";
+
+                tr.appendChild(td1);
+                tr.appendChild(td2);
+                tr.appendChild(td3);
+                tr.appendChild(td4);
             } else {
                 const score = item.match_percentage || 0;
                 const scoreColor = score >= 80 ? "#10b981" : (score >= 50 ? "#f59e0b" : "#ef4444");
                 const skillsPreview = (item.skills || []).slice(0, 3).join(", ");
                 const skillsText = skillsPreview ? (item.skills.length > 3 ? `${skillsPreview}...` : skillsPreview) : "None";
 
-                tr.innerHTML = `
-                    <td style="padding: 1rem 0.75rem; text-align: center; font-weight: 700; color: #718096;">#${index + 1}</td>
-                    <td style="padding: 1rem 0.75rem; font-weight: 600; color: white;">${escapeHtml(item.name || "Unknown")}</td>
-                    <td style="padding: 1rem 0.75rem; color: #cbd5e0;">${escapeHtml(item.target_role || item.detected_role || "Not Inferred")}</td>
-                    <td style="padding: 1rem 0.75rem; text-align: center;">
-                        <span style="font-size: 0.8rem; font-weight: 700; color: ${scoreColor}; background: ${scoreColor}15; padding: 0.2rem 0.5rem; border-radius: 6px; display: inline-block;">
-                            ${escapeHtml(score)}%
-                        </span>
-                    </td>
-                    <td style="padding: 1rem 0.75rem; color: #a0aec0; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml((item.skills || []).join(", "))}">${escapeHtml(skillsText)}</td>
-                    <td style="padding: 1rem 0.75rem; text-align: center;">
-                        <button class="inspect-btn btn-secondary" style="margin: 0; padding: 0.35rem 0.65rem; font-size: 0.75rem; width: auto; background: rgba(0, 210, 211, 0.1); border-color: rgba(0, 210, 211, 0.3); color: var(--accent-secondary);">
-                            Inspect
-                        </button>
-                    </td>
-                `;
+                const td1 = document.createElement("td");
+                td1.style.padding = "1rem 0.75rem";
+                td1.style.textAlign = "center";
+                td1.style.fontWeight = "700";
+                td1.style.color = "#718096";
+                td1.textContent = `#${index + 1}`;
 
-                const inspectBtn = tr.querySelector(".inspect-btn");
+                const td2 = document.createElement("td");
+                td2.style.padding = "1rem 0.75rem";
+                td2.style.fontWeight = "600";
+                td2.style.color = "white";
+                td2.textContent = item.name || "Unknown";
+
+                const td3 = document.createElement("td");
+                td3.style.padding = "1rem 0.75rem";
+                td3.style.color = "#cbd5e0";
+                td3.textContent = item.target_role || item.detected_role || "Not Inferred";
+
+                const td4 = document.createElement("td");
+                td4.style.padding = "1rem 0.75rem";
+                td4.style.textAlign = "center";
+                const scoreSpan = document.createElement("span");
+                scoreSpan.style.fontSize = "0.8rem";
+                scoreSpan.style.fontWeight = "700";
+                scoreSpan.style.color = scoreColor;
+                scoreSpan.style.background = scoreColor + "15";
+                scoreSpan.style.padding = "0.2rem 0.5rem";
+                scoreSpan.style.borderRadius = "6px";
+                scoreSpan.style.display = "inline-block";
+                scoreSpan.textContent = `${score}%`;
+                td4.appendChild(scoreSpan);
+
+                const td5 = document.createElement("td");
+                td5.style.padding = "1rem 0.75rem";
+                td5.style.color = "#a0aec0";
+                td5.style.maxWidth = "200px";
+                td5.style.whiteSpace = "nowrap";
+                td5.style.overflow = "hidden";
+                td5.style.textOverflow = "ellipsis";
+                td5.title = (item.skills || []).join(", ");
+                td5.textContent = skillsText;
+
+                const td6 = document.createElement("td");
+                td6.style.padding = "1rem 0.75rem";
+                td6.style.textAlign = "center";
+                const inspectBtn = document.createElement("button");
+                inspectBtn.className = "inspect-btn btn-secondary";
+                inspectBtn.style.margin = "0";
+                inspectBtn.style.padding = "0.35rem 0.65rem";
+                inspectBtn.style.fontSize = "0.75rem";
+                inspectBtn.style.width = "auto";
+                inspectBtn.style.background = "rgba(0, 210, 211, 0.1)";
+                inspectBtn.style.borderColor = "rgba(0, 210, 211, 0.3)";
+                inspectBtn.style.color = "var(--accent-secondary)";
+                inspectBtn.textContent = "Inspect";
                 inspectBtn.addEventListener("click", () => {
                     parsedResultData = item;
                     renderAnalysisResults(item);
                     batchResultsContainer.classList.add("hidden-section");
                     resultsContainer.classList.remove("hidden-section");
                 });
+                td6.appendChild(inspectBtn);
+
+                tr.appendChild(td1);
+                tr.appendChild(td2);
+                tr.appendChild(td3);
+                tr.appendChild(td4);
+                tr.appendChild(td5);
+                tr.appendChild(td6);
             }
             batchLeaderboardRows.appendChild(tr);
         });

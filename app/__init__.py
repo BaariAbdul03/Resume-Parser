@@ -18,14 +18,15 @@ def create_app(config_class=None):
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
     
     # Apply ProxyFix middleware in production to trust reverse-proxy headers (like Render's SSL terminator)
-    if os.environ.get("FLASK_ENV", "development").lower() == "production":
+    is_prod_env = os.environ.get("FLASK_ENV", "development").lower() == "production" or os.environ.get("RENDER") is not None
+    if is_prod_env:
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
     
     # 1. Determine environment and load configuration
     if config_class is None:
         env = os.environ.get("FLASK_ENV", "development").lower()
-        if env == "production":
+        if env == "production" or os.environ.get("RENDER") is not None:
             config_class = ProductionConfig
         elif env == "testing":
             config_class = TestingConfig
