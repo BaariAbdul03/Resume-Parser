@@ -143,14 +143,14 @@ class AIAnalysisResult(BaseModel):
         if v is None:
             return 0
         if isinstance(v, str):
-            # Parse percentage like "75%" or "75"
             v = v.replace("%", "").strip()
             match = re.search(r'\d+', v)
             if match:
-                return int(match.group())
+                return max(0, min(100, int(match.group())))
             return 0
         try:
-            return int(v)
+            # Clamp instead of raising — prevents cascading fallback for off-by-one LLM outputs
+            return max(0, min(100, int(v)))
         except (ValueError, TypeError):
             return 0
 
@@ -186,14 +186,62 @@ class AIAnalysisResult(BaseModel):
     @classmethod
     def validate_scoring_reasoning(cls, v, info):
         match_percentage = info.data.get("match_percentage")
-        if match_percentage is not None:
-            # Check if text explicitly says "Final: X" or similar
-            match = re.search(r'(?:Final|Final Score|Score):\s*(\d+)', v, re.IGNORECASE)
-            if match:
-                final_val = int(match.group(1))
-                if final_val != match_percentage:
-                    raise ValueError(f"Scoring consistency mismatch: match_percentage is {match_percentage} but Final score in reasoning is {final_val}")
+        if not (match_percentage is not None and v):
+            return v
+
+        # ── Extract "Final: N" (last occurrence) ──────────────────────────────
+        final_matches = re.findall(
+            r'(?:Final(?:\s+Score)?):\s*(\d+)',
+            v, re.IGNORECASE
+        )
+        if not final_matches:
+            logger.warning(
+                "validate_scoring_reasoning: no 'Final: N' pattern found. "
+                "Consistency check skipped. reasoning=%r, match_percentage=%s",
+                v[:120], match_percentage
+            )
+            return v
+
+        final_val = int(final_matches[-1])
+        if final_val != match_percentage:
+            raise ValueError(
+                f"Scoring consistency mismatch: match_percentage={match_percentage} "
+                f"but Final in reasoning={final_val}"
+            )
+
+        # ── NEW FORMAT: D1 X/40, D2 Y/30, D3 Z/20, D4 W/10 ──────────────────
+        # Pattern: "D1 Skills: 38/40" or "D1 Skills: 38"
+        dim_matches = re.findall(
+            r'D[1-4][^:]*:\s*(\d+)(?:/\d+)?',
+            v, re.IGNORECASE
+        )
+        if len(dim_matches) == 4:
+            dim_vals = [int(x) for x in dim_matches]
+            dim_sum = sum(dim_vals)
+            if dim_sum != final_val:
+                raise ValueError(
+                    f"Scoring arithmetic error: D1+D2+D3+D4 = {dim_vals} = {dim_sum}, "
+                    f"but Final stated as {final_val}"
+                )
+            return v  # dimension-based check passed
+
+        # ── LEGACY FALLBACK: Deducted N patterns (for backward compat) ────────
+        deduction_matches = re.findall(
+            r'(?:Deduct(?:ed)?|penalty)\s+(\d+)|-\s*(\d+)\s*(?:pts|points)',
+            v, re.IGNORECASE
+        )
+        if deduction_matches:
+            deductions = [int(m[0] or m[1]) for m in deduction_matches if (m[0] or m[1])]
+            if deductions:
+                expected_score = max(0, 100 - sum(deductions))
+                if final_val != expected_score:
+                    raise ValueError(
+                        f"Scoring arithmetic error: deductions {deductions} sum={sum(deductions)}, "
+                        f"expected score={expected_score}, but reasoning stated Final={final_val}"
+                    )
+
         return v
+
 
 def validate_ai_output(data: dict) -> dict:
     """

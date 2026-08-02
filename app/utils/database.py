@@ -6,6 +6,62 @@ from app.extensions import db
 
 logger = logging.getLogger(__name__)
 
+# Public tables covered by Row Level Security / deny_all policies.
+RLS_TABLES = ["users", "analyses", "api_keys", "role_templates"]
+
+
+def build_rls_statements(engine, tables: set[str]) -> list[str]:
+    """
+    Return idempotent RLS DDL for the public tables: enable RLS where missing
+    and install a `deny_all` policy where missing.
+
+    The blanket `deny_all` policy deliberately blocks every non-owner row
+    access: the application connects as the table owner (RLS is bypassed for
+    owners), so this only ever blocks accidental PostgREST/anonymous access.
+    Do not add row-level SELECT policies unless a non-owner role is introduced.
+    """
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text(
+                "SELECT c.relname FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'public' AND c.relrowsecurity = true"
+            ))
+            rls_enabled_tables = {row[0] for row in result.all()}
+
+            policy_result = connection.execute(text(
+                "SELECT tablename FROM pg_policies WHERE schemaname = 'public' AND policyname = 'deny_all'"
+            ))
+            tables_with_policy = {row[0] for row in policy_result.all()}
+    except Exception:
+        logger.warning("Failed to query existing RLS status, defaulting to check-and-apply.")
+        rls_enabled_tables = set()
+        tables_with_policy = set()
+
+    statements: list[str] = []
+    for table in RLS_TABLES:
+        if table not in tables:
+            continue
+        if table not in rls_enabled_tables:
+            statements.append(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
+        if table not in tables_with_policy:
+            statements.append(f"CREATE POLICY \"deny_all\" ON {table} FOR ALL USING (false)")
+    return statements
+
+
+def execute_ddl(engine, statements: list[str]) -> None:
+    """Execute idempotent DDL statements in a single transaction."""
+    if not statements:
+        return
+    try:
+        with engine.begin() as connection:
+            for statement in statements:
+                logger.info("Applying database compatibility DDL: %s", statement)
+                connection.execute(text(statement))
+    except Exception:
+        logger.exception("Failed to apply database compatibility schema updates.")
+        raise
+
 
 def ensure_database_compatibility() -> None:
     """
@@ -61,38 +117,6 @@ def ensure_database_compatibility() -> None:
         ddl_statements.append("ALTER TABLE api_keys ALTER COLUMN key_prefix TYPE VARCHAR(32)")
 
     if engine.dialect.name == "postgresql":
-        try:
-            with engine.connect() as connection:
-                result = connection.execute(text(
-                    "SELECT c.relname FROM pg_class c "
-                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
-                    "WHERE n.nspname = 'public' AND c.relrowsecurity = true"
-                ))
-                rls_enabled_tables = {row[0] for row in result.all()}
-                
-                policy_result = connection.execute(text(
-                    "SELECT tablename FROM pg_policies WHERE schemaname = 'public' AND policyname = 'deny_all'"
-                ))
-                tables_with_policy = {row[0] for row in policy_result.all()}
-        except Exception:
-            logger.warning("Failed to query existing RLS status, defaulting to check-and-apply.")
-            rls_enabled_tables = set()
-            tables_with_policy = set()
+        ddl_statements.extend(build_rls_statements(engine, tables))
 
-        for table in ["users", "analyses", "api_keys", "role_templates"]:
-            if table in tables and table not in rls_enabled_tables:
-                ddl_statements.append(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-            if table in tables and table not in tables_with_policy:
-                ddl_statements.append(f"CREATE POLICY \"deny_all\" ON {table} FOR ALL USING (false)")
-
-    if not ddl_statements:
-        return
-
-    try:
-        with engine.begin() as connection:
-            for statement in ddl_statements:
-                logger.info("Applying database compatibility DDL: %s", statement)
-                connection.execute(text(statement))
-    except Exception:
-        logger.exception("Failed to apply database compatibility schema updates.")
-        raise
+    execute_ddl(engine, ddl_statements)

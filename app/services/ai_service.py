@@ -2,7 +2,7 @@
 Unified AI Resume Analysis Service
 ====================================
 3-Tier resilient AI pipeline:
-  1. Groq (Llama 4 Scout)      – Primary   – Free, fast, generous limits
+  1. Groq (Llama 3.3 70B)          – Primary   – Free, fast, generous limits
   2. Gemini 2.5 Flash           – Secondary – Fallback if Groq unavailable
   3. Gemini 2.0 Flash           – Tertiary  – Last resort
 
@@ -45,35 +45,92 @@ YOUR MISSION: Evaluate how well this candidate fits the TARGET ROLE described ab
 - Identify which required skills from the JD are MISSING from the resume as "missing_keywords"."""
 
         scoring_logic = """
-SCORING ALGORITHM (JD-MATCHED PENALTY SYSTEM):
-1. Start with a Base Score of 100.
-2. The target role is DEFINED by the Job Description above — use it directly.
-3. Apply Deductions based on gaps between the CANDIDATE'S RESUME and the JD REQUIREMENTS:
-   - CRITICAL SKILL GAP (-25 pts each): The JD explicitly requires a skill that is completely absent from the resume.
-     * Example: JD requires Python/R for Data Scientist role, candidate has none.
-     * Example: JD requires React/TypeScript for Frontend Engineer, candidate has none.
-   - EXPERIENCE GAP (-10 pts): Bullet points are vague, generic, or lack quantifiable metrics (numbers/%).
-   - FORMATTING (-5 pts): Layout is messy or missing basic contact info.
-4. Final Score = 100 - Total Deductions. (Minimum 0.)"""
+SCORING RUBRIC — 4 DIMENSIONS, MAX 100 POINTS TOTAL:
+Do NOT start from 100 and deduct. Instead EARN points across 4 dimensions:
+
+D1 — SKILLS MATCH (max 40 pts)
+  Count the EXPLICIT required skills listed in the Job Description above.
+  Points = (skills_present_in_resume / total_required_skills_in_JD) × 40.
+  Round to nearest integer.
+  CRITICAL DOMAIN RULE: Do NOT award D1 points for generic skills (like HTML/CSS/Python) if the role requires specialized domain tools (e.g. Figma/wireframing for UX/UI, CRM/Salesforce for Sales, Terraform/Kubernetes for DevOps, PyTorch/Tableau for Data Science).
+  If the candidate lacks ALL specialized domain tools/skills required by the role, D1 MUST BE 0/40.
+
+D2 — SENIORITY / EXPERIENCE MATCH (max 30 pts) — THE HARDEST GATE
+  Step 1: Determine REQUIRED seniority from the JD title and language:
+    - “Intern / Fresher / Graduate / Trainee / Entry-Level” → ENTRY (0–2 yr expected)
+    - “Junior / Associate” → JUNIOR (1–3 yr expected)
+    - “Mid-Level / Intermediate / (no modifier)” → MID (3–5 yr expected)
+    - “Senior / Staff / Principal” → SENIOR (5+ yr expected)
+    - “Lead / Architect / Director / VP” → LEAD (8+ yr expected)
+  Step 2: Assess CANDIDATE’S actual experience level from resume dates/context:
+    - Still in college / graduation year ≥ current year → ENTRY
+    - Graduated ≤ 2 years ago AND first real job → JUNIOR
+    - 2–5 years of professional work history → MID
+    - 5+ years of professional work history → SENIOR
+    - 8+ years or explicit leadership/architecture roles → LEAD
+  Step 3: Award D2 points:
+    | Gap (Required vs Candidate)       | D2 Points |
+    | Exact match or overqualified      |     30    |
+    | 1 level below required            |     18    |
+    | 2 levels below required           |      8    |
+    | 3+ levels below (e.g. ENTRY → SENIOR) |  2    |
+
+D3 — IMPACT / PROJECT QUALITY (max 20 pts)
+  Assess evidence of real-world contribution:
+    - Multiple quantified achievements using numbers/%, AND professional work (not just courses):→ 18–20 pts
+    - Some quantified results OR one significant professional project with metrics:→ 12–15 pts
+    - Only academic / personal projects, no production scale, no metrics:→ 5–8 pts
+    - Pure skills list or course certifications only, no evidence of building anything:→ 0–2 pts
+
+D4 — EDUCATION FIT (max 10 pts)
+  - Degree directly relevant to the role (CS/EE for Engineering, etc.):→ 9–10 pts
+  - Related field or ongoing relevant degree:→ 6–8 pts
+  - Unrelated degree but relevant certifications present:→ 3–5 pts
+  - No degree and no relevant certs:→ 0–2 pts
+
+FINAL SCORE = D1 + D2 + D3 + D4  (must be between 0 and 100)"""
+
     else:
         # ── INFERENCE MODE: No JD, detect role from resume content ──────────
         context_block = """NO JOB DESCRIPTION PROVIDED.
 YOUR MISSION: Infer the candidate's target role from their resume content, skills, and experience.
-- "detected_role" MUST be the role you infer from the resume content.
-- Score the candidate against typical industry standards for their detected role.
+- "detected_role" MUST be the role you infer from the resume content (include realistic seniority, e.g. "Junior Frontend Engineer" or "Mid-Level Data Scientist").
+- Score the candidate against TYPICAL INDUSTRY STANDARDS for their inferred role AND their inferred seniority level.
 - Identify commonly expected skills for that role that are missing as "missing_keywords"."""
 
         scoring_logic = """
-SCORING ALGORITHM (INFERRED ROLE PENALTY SYSTEM):
-1. Start with a Base Score of 100.
-2. Infer the Target Role from the resume (job titles, skills, experience context).
-3. Apply Deductions based on gaps for the INFERRED ROLE:
-   - CRITICAL SKILL GAP (-25 pts): Missing a FOUNDATIONAL skill for their inferred role.
-     * Example: 'Full Stack Dev' missing Databases (SQL/NoSQL).
-     * Example: 'Data Scientist' missing Python/R.
-   - EXPERIENCE GAP (-10 pts): Bullet points are vague, generic, or lack quantifiable metrics.
-   - FORMATTING (-5 pts): Layout is messy or missing basic contact info.
-4. Final Score = 100 - Total Deductions. (Minimum 0.)"""
+SCORING RUBRIC — 4 DIMENSIONS, MAX 100 POINTS TOTAL:
+Do NOT start from 100 and deduct. Instead EARN points across 4 dimensions:
+
+D1 — SKILLS MATCH (max 40 pts)
+  Identify the foundational skills typically required for the inferred role.
+  Points = (skills_present_in_resume / typical_required_skills_for_role) × 40. Cap at 40.
+  CRITICAL DOMAIN RULE: Candidate MUST possess specialized domain tools for the role to get D1 points. If candidate lacks core domain tools, D1 MUST BE 0/40.
+
+D2 — SENIORITY / EXPERIENCE MATCH (max 30 pts)
+  Step 1: Assess candidate's actual experience level from resume:
+    - Still in college / graduation year ≥ current year → ENTRY
+    - Graduated ≤ 2 years ago, first real job → JUNIOR
+    - 2–5 years professional history → MID
+    - 5+ years professional history → SENIOR
+    - 8+ years or explicit leadership/architecture roles → LEAD
+  Step 2: The inferred "detected_role" MUST reflect this assessed level.
+  Step 3: Since the detected role matches assessed level by definition, D2 should be 24–30
+    (slight deduction only if the skills tell a different seniority story than the years).
+
+D3 — IMPACT / PROJECT QUALITY (max 20 pts)
+    - Multiple quantified achievements in professional roles: 18–20 pts
+    - Some metrics OR significant professional project: 12–15 pts
+    - Only academic/personal projects, no metrics: 5–8 pts
+    - Pure skills list, no evidence of building: 0–2 pts
+
+D4 — EDUCATION FIT (max 10 pts)
+  - Degree relevant to inferred role: 9–10 pts
+  - Related field or in-progress degree: 6–8 pts
+  - Unrelated degree + certs: 3–5 pts
+  - No degree, no certs: 0–2 pts
+
+FINAL SCORE = D1 + D2 + D3 + D4  (must be between 0 and 100)"""
 
     return f"""You are a senior technical recruiter and ruthless AI Resume Parser performing a precise candidate evaluation.
 
@@ -94,9 +151,13 @@ Extract the following fields from the resume. Return "Not Found" if a field is a
 TASK 2: JD-MATCHED EVALUATION
 {scoring_logic}
 
-MANDATORY CONSISTENCY RULE: The numeric value in "match_percentage" MUST EXACTLY EQUAL the final score
-stated at the end of "scoring_reasoning". Example: if reasoning ends with "Final: 65", then match_percentage must be 65.
-Any mismatch between these two fields is a critical error.
+MANDATORY CONSISTENCY & ARITHMETIC RULE:
+1. Compute D1, D2, D3, D4 scores. Add them: TOTAL = D1 + D2 + D3 + D4.
+2. Set "match_percentage" = TOTAL. Do NOT choose match_percentage independently — it MUST be the arithmetic sum.
+3. Show all dimension scores in "scoring_reasoning" in this exact format:
+   "D1 Skills: X/40. D2 Seniority: Y/30 [candidate-level vs required-level]. D3 Impact: Z/20. D4 Education: W/10. Final: TOTAL."
+4. Final in scoring_reasoning MUST equal TOTAL which MUST equal match_percentage. All three must be identical.
+Any mismatch is a critical error — recompute before outputting.
 
 ---
 OUTPUT FORMAT (MANDATORY — return ONLY this JSON, no markdown, no extra text):
@@ -112,7 +173,7 @@ OUTPUT FORMAT (MANDATORY — return ONLY this JSON, no markdown, no extra text):
     "detected_role": "EXACT TARGET ROLE from JD (or inferred role if no JD)",
     "missing_keywords": ["required skill from JD that is absent in resume"],
     "profile_summary": "2-3 sentence evaluation of candidate fit for the target role",
-    "scoring_reasoning": "Started at 100. Deducted X for [specific gap]. Deducted Y for [specific gap]. Final: Z."
+    "scoring_reasoning": "D1 Skills: 38/40. D2 Seniority: 2/30 [ENTRY vs SENIOR required]. D3 Impact: 6/20. D4 Education: 8/10. Final: 54."
 }}
 
 ---
@@ -135,7 +196,7 @@ def _clean_json_response(text: str) -> dict:
 # ---------------------------------------------------------------------------
 
 class GroqService:
-    """Groq-backed resume analysis using Llama 4 Scout with JSON mode."""
+    """Groq-backed resume analysis using Llama 3.3 70B with JSON mode."""
 
     PRIMARY_MODEL = "llama-3.3-70b-versatile"
     FALLBACK_MODEL = "llama-3.1-8b-instant"
@@ -201,10 +262,16 @@ class GroqService:
 # ---------------------------------------------------------------------------
 
 class GeminiService:
-    """Gemini-backed resume analysis (secondary / tertiary fallback)."""
+    """Gemini-backed resume analysis (secondary / tertiary fallback).
 
-    PRIMARY_MODEL = "gemini-2.5-flash-preview-05-20"
+    Model names, retry count, and timeout are read from app config at call
+    time (GEMINI_MODEL, GEMINI_FALLBACK_MODEL, GEMINI_RETRIES, GEMINI_TIMEOUT),
+    falling back to the defaults below when no app context is active.
+    """
+
+    PRIMARY_MODEL = "gemini-2.5-flash"
     FALLBACK_MODEL = "gemini-2.0-flash"
+    DEFAULT_RETRIES = 2
 
     def __init__(self):
         self._configured = False
@@ -248,9 +315,15 @@ class GeminiService:
         return _clean_json_response(response.text)
 
     def analyze(self, resume_text: str, jd_text: str, model_name: str = None) -> dict:
-        model = model_name or self.PRIMARY_MODEL
+        if has_app_context():
+            primary = current_app.config.get("GEMINI_MODEL") or self.PRIMARY_MODEL
+            fallback = current_app.config.get("GEMINI_FALLBACK_MODEL") or self.FALLBACK_MODEL
+            retries = int(current_app.config.get("GEMINI_RETRIES") or self.DEFAULT_RETRIES)
+        else:
+            primary, fallback, retries = self.PRIMARY_MODEL, self.FALLBACK_MODEL, self.DEFAULT_RETRIES
+
+        model = model_name or primary
         prompt = _build_prompt(resume_text, jd_text)
-        retries = 2
         delay = 1.0
         last_error = None
 
@@ -265,9 +338,9 @@ class GeminiService:
                     delay *= 2.0
 
         # Try fallback Gemini model if primary failed
-        if model == self.PRIMARY_MODEL:
-            logger.warning(f"[Gemini] Switching to fallback model {self.FALLBACK_MODEL}")
-            return self.analyze(resume_text, jd_text, model_name=self.FALLBACK_MODEL)
+        if model == primary:
+            logger.warning(f"[Gemini] Switching to fallback model {fallback}")
+            return self.analyze(resume_text, jd_text, model_name=fallback)
 
         raise last_error
 
@@ -279,7 +352,7 @@ class GeminiService:
 class AIService:
     """
     3-Tier AI facade:
-      Tier 1 → Groq (Llama 4 Scout)     [primary, fastest, free quota]
+      Tier 1 → Groq (Llama 3.3 70B)     [primary, fastest, free quota]
       Tier 2 → Gemini 2.5 Flash          [secondary]
       Tier 3 → Gemini 2.0 Flash          [last resort]
 
@@ -294,12 +367,14 @@ class AIService:
         """Public entry point — tries Groq first, cascades to Gemini on failure."""
 
         # ── Tier 1: Groq ────────────────────────────────────────────────────
+        groq_err_for_log = None
         try:
             result = self._groq.analyze(resume_text, jd_text)
             validated = validate_ai_output(result)
             logger.info("[AIService] Analysis completed via Groq (Tier 1).")
             return validated
         except Exception as groq_err:
+            groq_err_for_log = groq_err
             logger.warning(f"[AIService] Groq failed or output invalid: {groq_err}. Falling back to Gemini.")
 
         # ── Tier 2 + 3: Gemini (handles its own internal fallback) ──────────
@@ -307,6 +382,9 @@ class AIService:
             result = self._gemini.analyze(resume_text, jd_text)
             validated = validate_ai_output(result)
             logger.info("[AIService] Analysis completed via Gemini (Tier 2/3).")
+            # Surface that a fallback occurred so callers can observe it in logs/responses.
+            validated["_validation_fallback"] = True
+            validated["_fallback_reason"] = str(groq_err_for_log)
             return validated
         except Exception as gemini_err:
             logger.error(f"[AIService] All AI providers exhausted or invalid. Final error: {gemini_err}", exc_info=True)

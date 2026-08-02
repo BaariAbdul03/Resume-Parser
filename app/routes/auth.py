@@ -1,6 +1,7 @@
 from authlib.integrations.base_client.errors import OAuthError
 from flask import (
     Blueprint,
+    abort,
     current_app,
     flash,
     jsonify,
@@ -11,7 +12,7 @@ from flask import (
 )
 from flask_login import login_user, logout_user, login_required
 
-from app.extensions import db, oauth
+from app.extensions import db, oauth, limiter
 from app.models import User
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -91,6 +92,7 @@ def oauth_status():
 # 1. Traditional Password Registration & Login Routes
 # ==========================================================================
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
 def register():
     """Allows new users to create accounts."""
     if request.method == 'POST':
@@ -126,6 +128,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     """Traditional sign in view."""
     if request.method == 'POST':
@@ -167,6 +170,9 @@ def login_google():
     client_secret = current_app.config.get("GOOGLE_CLIENT_SECRET")
     
     if not client_id or not client_secret:
+        if current_app.config.get("ENV") == "production":
+            flash("Google sign-in is not configured on this deployment.", "error")
+            return redirect(url_for('auth.login'))
         # SANDBOX DEV MODE: Render transition screen to prevent back-button loops
         current_app.logger.warning(
             "No Google OAuth secrets detected. Running in simulated Developer Sandbox Mode."
@@ -229,7 +235,13 @@ def google_authorize():
 
 @auth_bp.route('/oauth/sandbox', methods=['POST'])
 def google_sandbox_callback():
-    """Simulates success callback in developer mode for frictionless recruiter testing."""
+    """Simulates success callback in developer mode for frictionless recruiter testing.
+
+    Only reachable outside production (dev/test). Production deployments must
+    use real Google OAuth or password authentication.
+    """
+    if current_app.config.get("ENV") == "production":
+        abort(404)
     mock_email = "developer.sandbox@synapsecv.io"
     mock_name = "Sandbox Recruiter"
     mock_sub = "sandbox-sub-12345"

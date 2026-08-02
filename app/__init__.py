@@ -46,7 +46,8 @@ def create_app(config_class=None):
     
     # 3. Initialize Extensions
     limiter.init_app(app)
-    cors.init_app(app)
+    # Restrict CORS to explicitly configured origins (empty = same-origin only).
+    cors.init_app(app, resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS")}})
     csrf.init_app(app)
     
     # Talisman only active/strict in production to avoid local HTTPS hassles

@@ -604,7 +604,34 @@ h1, h2, h3, h4, h5 {
     cursor: not-allowed;
 }
 
-/* --- Loading / Skeleton Screens --- */
+/* --- Loading / Skeleton Screens & Progress Bar --- */
+@keyframes spin-logo {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+    animation: spin-logo 2s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.parsing-progress-container {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 2rem auto;
+    padding: 1.25rem 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.progress-bar-fill {
+    box-shadow: 0 0 14px rgba(108, 92, 231, 0.7);
+}
+
 .hidden-section {
     display: none !important;
 }

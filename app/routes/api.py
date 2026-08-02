@@ -5,7 +5,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, g
 from app.extensions import db, limiter, csrf
 from app.models import ApiKey, Analysis
-from app.routes.parse import parse_single_resume_object
+from app.services.parsing import parse_single_resume_object, save_analysis_result
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -164,30 +164,12 @@ def api_parse_resume():
         if "error" in result:
             return jsonify({"error": result["error"]}), 400
             
-        # Save to database under the API key user's account
-        try:
-            selected_role = request.form.get('target_role', '').strip() or request.form.get('selected_role', '').strip()
-            analysis = Analysis(
-                user_id=g.api_user.id,
-                candidate_name=result.get("name"),
-                target_role=selected_role or result.get("detected_role"),
-                detected_role=result.get("detected_role"),
-                match_percentage=result.get("match_percentage"),
-                email=result.get("email"),
-                phone=result.get("phone"),
-                education=result.get("education"),
-                skills=result.get("skills"),
-                missing_keywords=result.get("missing_keywords"),
-                profile_summary=result.get("profile_summary"),
-                scoring_reasoning=result.get("scoring_reasoning")
-            )
-            db.session.add(analysis)
-            db.session.commit()
-            result["db_id"] = analysis.id
-        except Exception as db_err:
-            db.session.rollback()
-            logger.error(f"API parse DB save failed: {db_err}", exc_info=True)
-            
+        # Save to database under the API key user's account (best-effort)
+        target_role = request.form.get('target_role', '').strip() or request.form.get('selected_role', '').strip()
+        db_id = save_analysis_result(g.api_user.id, result, target_role)
+        if db_id is not None:
+            result["db_id"] = db_id
+
         return jsonify(result)
         
     except Exception as e:

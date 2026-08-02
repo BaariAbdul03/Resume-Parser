@@ -1,9 +1,13 @@
+import logging
+
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import current_user
 from sqlalchemy import text
 from app.services.role_library import RoleLibrary
 from app.models import Analysis, RoleTemplate
 from app.extensions import db
+
+logger = logging.getLogger(__name__)
 
 web_bp = Blueprint('web', __name__)
 
@@ -82,7 +86,8 @@ def manage_roles():
             return jsonify({"success": True, "message": f"Template for '{role_name}' saved successfully!"})
         except Exception as e:
             db.session.rollback()
-            return jsonify({"error": f"Failed to save role template: {str(e)}"}), 500
+            logger.error(f"Failed to save role template: {e}", exc_info=True)
+            return jsonify({"error": "Failed to save role template."}), 500
 
     # GET Request
     global_list = RoleLibrary.get_list()

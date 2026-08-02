@@ -1,19 +1,15 @@
-import logging
 import io
+import logging
 from concurrent.futures import ThreadPoolExecutor
-from flask import Blueprint, current_app, request, jsonify
+
+from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
-from app.extensions import limiter, db
-from app.services.pdf_service import extract_text_from_pdf
-from app.services.ai_service import AIService
-from app.utils.validators import validate_pdf_mime
-from app.models import Analysis
+
+from app.extensions import limiter
+from app.services.parsing import parse_single_resume_object, save_analysis_result
 
 logger = logging.getLogger(__name__)
 parse_bp = Blueprint('parse', __name__)
-
-# Initialize the unified 3-tier AI service (Groq → Gemini 2.5 → Gemini 2.0)
-ai_service = AIService()
 
 
 def ensure_ai_configured():
@@ -21,34 +17,6 @@ def ensure_ai_configured():
     groq_key = current_app.config.get("GROQ_API_KEY")
     gemini_key = current_app.config.get("GEMINI_API_KEY")
     return bool(groq_key or gemini_key)
-
-
-def parse_single_resume_object(filename, stream, jd_text):
-    """
-    Worker function executed in a concurrent thread.
-    Performs PDF extraction and calls Gemini service safely.
-    """
-    try:
-        # Validate MIME signature
-        stream.seek(0)
-        if not validate_pdf_mime(stream):
-            return {"filename": filename, "error": "Invalid file content. Not a valid PDF."}
-            
-        stream.seek(0)
-        resume_text = extract_text_from_pdf(stream)
-        if not resume_text:
-            return {"filename": filename, "error": "Failed to read or extract printable text from PDF."}
-            
-        # Call unified AI service (Groq → Gemini fallback chain)
-        extracted_data = ai_service.analyze_resume(resume_text, jd_text)
-        if not extracted_data:
-            return {"filename": filename, "error": "AI model failed to analyze resume contents."}
-            
-        extracted_data["filename"] = filename
-        return extracted_data
-    except Exception as e:
-        logger.error(f"Error parsing resume {filename}: {e}", exc_info=True)
-        return {"filename": filename, "error": f"Internal parser error: {str(e)}"}
 
 
 @parse_bp.route('/parse', methods=['POST'])
@@ -67,7 +35,7 @@ def parse_resume():
         # P1.1: File presence validation
         if 'resume' not in request.files:
             return jsonify({"error": "No resume file provided"}), 400
-        
+
         files = request.files.getlist("resume")
         jd_text = request.form.get('job_description', '').strip()
         selected_role = request.form.get('selected_role', '').strip()  # The role chosen from dropdown
@@ -82,7 +50,7 @@ def parse_resume():
             if file and file.filename != '':
                 if not file.filename.lower().endswith('.pdf'):
                     return jsonify({"error": f"Invalid format for '{file.filename}'. Only PDF files are accepted."}), 400
-                
+
                 # Buffer the stream in memory
                 buffered_stream = io.BytesIO(file.read())
                 file_payloads.append((file.filename, buffered_stream))
@@ -97,44 +65,27 @@ def parse_resume():
         if len(file_payloads) == 1:
             filename, stream = file_payloads[0]
             result = parse_single_resume_object(filename, stream, jd_text)
-            
+
             if "error" in result:
                 return jsonify({"error": result["error"]}), 400
-                
-            # Sequentially save single record to database if authenticated
+
+            # Save single record to database if authenticated
             if current_user.is_authenticated:
-                try:
-                    analysis = Analysis(
-                        user_id=current_user.id,
-                        candidate_name=result.get("name"),
-                        target_role=selected_role or result.get("detected_role"),
-                        detected_role=result.get("detected_role"),
-                        match_percentage=result.get("match_percentage"),
-                        email=result.get("email"),
-                        phone=result.get("phone"),
-                        github_url=result.get("github_url"),
-                        linkedin_url=result.get("linkedin_url"),
-                        education=result.get("education"),
-                        skills=result.get("skills"),
-                        missing_keywords=result.get("missing_keywords"),
-                        profile_summary=result.get("profile_summary"),
-                        scoring_reasoning=result.get("scoring_reasoning")
-                    )
-                    db.session.add(analysis)
-                    db.session.commit()
-                    result["db_id"] = analysis.id
-                except Exception as db_err:
-                    db.session.rollback()
-                    logger.error(f"Database archive failed: {db_err}", exc_info=True)
-            
+                db_id = save_analysis_result(current_user.id, result, selected_role)
+                if db_id is not None:
+                    result["db_id"] = db_id
+
             return jsonify(result)
-            
+
         else:
-            # Concurrently parse batch payloads using a bounded ThreadPoolExecutor
+            # Concurrently parse batch payloads using a bounded ThreadPoolExecutor.
+            # Worker threads have no request context, so capture the app object and
+            # hand it to each worker — it pushes its own app context for the AI call.
+            app = current_app._get_current_object()
             completed_results = []
             with ThreadPoolExecutor(max_workers=min(len(file_payloads), 5)) as executor:
                 futures = [
-                    executor.submit(parse_single_resume_object, filename, stream, jd_text)
+                    executor.submit(parse_single_resume_object, filename, stream, jd_text, app)
                     for filename, stream in file_payloads
                 ]
                 for future in futures:
@@ -145,37 +96,17 @@ def parse_resume():
             if current_user.is_authenticated:
                 for res in completed_results:
                     if "error" not in res:
-                        try:
-                            analysis = Analysis(
-                                user_id=current_user.id,
-                                candidate_name=res.get("name"),
-                                target_role=selected_role or res.get("detected_role"),
-                                detected_role=res.get("detected_role"),
-                                match_percentage=res.get("match_percentage"),
-                                email=res.get("email"),
-                                phone=res.get("phone"),
-                                github_url=res.get("github_url"),
-                                linkedin_url=res.get("linkedin_url"),
-                                education=res.get("education"),
-                                skills=res.get("skills"),
-                                missing_keywords=res.get("missing_keywords"),
-                                profile_summary=res.get("profile_summary"),
-                                scoring_reasoning=res.get("scoring_reasoning")
-                            )
-                            db.session.add(analysis)
-                            db.session.commit()
-                            res["db_id"] = analysis.id
+                        db_id = save_analysis_result(current_user.id, res, selected_role)
+                        if db_id is not None:
+                            res["db_id"] = db_id
                             saved_count += 1
-                        except Exception as db_err:
-                            db.session.rollback()
-                            logger.error(f"Database archive failed during batch save: {db_err}", exc_info=True)
 
             # Sort batch results by match percentage descending (Ranked Leaderboard)
             successful_parses = [r for r in completed_results if "error" not in r]
             failed_parses = [r for r in completed_results if "error" in r]
-            
+
             successful_parses.sort(key=lambda x: x.get("match_percentage", 0), reverse=True)
-            
+
             # Form ranked list
             ranked_results = successful_parses + failed_parses
 

@@ -11,10 +11,9 @@ class Config:
     
     # Gemini API settings
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-    GEMINI_TIMEOUT = float(os.environ.get("GEMINI_TIMEOUT", "20.0"))  # seconds
-    GEMINI_RETRIES = int(os.environ.get("GEMINI_RETRIES", "0"))
-    GEMINI_ENABLE_FALLBACK = os.environ.get("GEMINI_ENABLE_FALLBACK", "false").lower() == "true"
-    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-lite")
+    GEMINI_TIMEOUT = float(os.environ.get("GEMINI_TIMEOUT", "30.0"))  # seconds
+    GEMINI_RETRIES = int(os.environ.get("GEMINI_RETRIES", "2"))
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
     GEMINI_FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash")
     
     # Database (Supabase / SQLite)
@@ -26,6 +25,9 @@ class Config:
     # Rate Limiting defaults
     RATELIMIT_DEFAULT = "100 per day"
     RATELIMIT_STORAGE_URI = "memory://"
+
+    # CORS: comma-separated list of allowed origins (default: same-origin only)
+    CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
     
     # OAuth configuration (Google)
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")

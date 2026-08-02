@@ -39,15 +39,35 @@ def test_validate_ai_output_valid():
         "linkedin_url": "https://linkedin.com/in/janedoe",
         "education": ["Bachelor of Science, Stanford, 2020"],
         "skills": ["Python", "Flask"],
-        "match_percentage": 85,
+        "match_percentage": 54,
         "detected_role": "Software Engineer",
         "missing_keywords": ["SQL"],
         "profile_summary": "Strong candidate.",
-        "scoring_reasoning": "Deducted 15. Final: 85"
+        "scoring_reasoning": "D1 Skills: 32/40. D2 Seniority: 2/30 [ENTRY vs SENIOR]. D3 Impact: 12/20. D4 Education: 8/10. Final: 54."
     }
     validated = validate_ai_output(data)
     assert validated["name"] == "Jane Doe"
-    assert validated["match_percentage"] == 85
+    assert validated["match_percentage"] == 54
+
+def test_validate_ai_output_dimension_arithmetic_mismatch():
+    """D1+D2+D3+D4 sum != Final should raise."""
+    data = {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": "123-456-7890",
+        "github_url": "https://github.com/janedoe",
+        "linkedin_url": "https://linkedin.com/in/janedoe",
+        "education": ["Bachelor of Science, Stanford, 2020"],
+        "skills": ["Python", "Flask"],
+        "match_percentage": 60,
+        "detected_role": "Software Engineer",
+        "missing_keywords": ["SQL"],
+        "profile_summary": "Strong candidate.",
+        # D1+D2+D3+D4 = 32+2+12+8 = 54, but Final says 60
+        "scoring_reasoning": "D1 Skills: 32/40. D2 Seniority: 2/30. D3 Impact: 12/20. D4 Education: 8/10. Final: 60."
+    }
+    with pytest.raises(ValidationError):
+        validate_ai_output(data)
 
 def test_validate_ai_output_coercion():
     data = {
@@ -62,7 +82,7 @@ def test_validate_ai_output_coercion():
         "detected_role": "Software Engineer",
         "missing_keywords": "SQL, Git",
         "profile_summary": "Strong candidate.",
-        "scoring_reasoning": "Deducted 15. Final Score: 85"
+        "scoring_reasoning": "D1 Skills: 40/40. D2 Seniority: 20/30 [MID vs SENIOR]. D3 Impact: 15/20. D4 Education: 10/10. Final: 85."
     }
     validated = validate_ai_output(data)
     assert validated["education"] == ["Bachelor of Science, Stanford, 2020"]
@@ -71,6 +91,7 @@ def test_validate_ai_output_coercion():
     assert validated["missing_keywords"] == ["SQL", "Git"]
 
 def test_validate_ai_output_mismatch():
+    """match_percentage != Final in reasoning should raise."""
     data = {
         "name": "Jane Doe",
         "email": "jane@example.com",
@@ -83,7 +104,7 @@ def test_validate_ai_output_mismatch():
         "detected_role": "Software Engineer",
         "missing_keywords": ["SQL"],
         "profile_summary": "Strong candidate.",
-        "scoring_reasoning": "Deducted 15. Final: 85"
+        "scoring_reasoning": "D1 Skills: 30/40. D2 Seniority: 30/30. D3 Impact: 15/20. D4 Education: 10/10. Final: 85."
     }
     with pytest.raises(ValidationError):
         validate_ai_output(data)

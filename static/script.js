@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                         <h4 style="font-family: var(--font-heading); font-size: 0.9rem; font-weight: 700; color: white; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(title)}</h4>
                     </div>
-                    <p style="font-size: 0.8rem; color: #a0aec0; line-height: 1.5; margin: 0 0 1.5rem 0;">${message}</p>
+                    <p style="font-size: 0.8rem; color: #a0aec0; line-height: 1.5; margin: 0 0 1.5rem 0;">${escapeHtml(message)}</p>
                     <div style="display: flex; gap: 0.6rem; justify-content: flex-end;">
                         <button type="button" id="confirm-modal-cancel" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0.45rem 0.9rem; color: #a0aec0; font-size: 0.75rem; cursor: pointer; transition: all 0.2s ease;">${escapeHtml(cancelText)}</button>
                         <button type="button" id="confirm-modal-ok" style="background: ${isDanger ? '#ef4444' : 'var(--accent-secondary)'}; border: none; border-radius: 8px; padding: 0.45rem 0.9rem; color: white; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px ${isDanger ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 210, 211, 0.2)'};">${escapeHtml(confirmText)}</button>
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 deleteBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
-                    const confirmed = await showConfirm(`Are you sure you want to remove <strong>${escapeHtml(item.name || "Candidate")}</strong> from your archives?`, {
+                    const confirmed = await showConfirm(`Are you sure you want to remove "${item.name || "Candidate"}" from your archives?`, {
                         title: "Remove Candidate",
                         confirmText: "Remove",
                         danger: true
@@ -532,16 +532,64 @@ document.addEventListener("DOMContentLoaded", () => {
         const isFileLoaded = selectedFiles.length > 0;
         const jdLength = jdTextarea.value.trim().length;
         const isJdValid = jdLength <= 5000;
-        
-        analyzeBtn.disabled = !(isFileLoaded && isJdValid);
+                analyzeBtn.disabled = !(isFileLoaded && isJdValid);
     }
 
     // ==========================================================================
-    // 3. API Parse Submission & Loading states
+    // 3. API Parse Submission & Loading states & Progress Bar Controller
     // ==========================================================================
+    let parsingProgressInterval = null;
+
+    function startParsingProgress() {
+        const fill = document.getElementById("parsing-progress-fill");
+        const percentText = document.getElementById("parsing-percentage-text");
+        const stageText = document.getElementById("parsing-stage-text");
+        const subStep = document.getElementById("parsing-sub-step");
+        
+        const logoSpinSvg = `<svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.64 5.64l2.83 2.83M15.53 15.53l2.83 2.83M5.64 18.36l2.83-2.83M15.53 8.47l2.83-2.83"/><circle cx="12" cy="3" r="1" fill="currentColor"/><circle cx="12" cy="21" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="21" cy="12" r="1" fill="currentColor"/></svg>`;
+
+        const stages = [
+            { pct: 15, stage: "Extracting PDF Text...", sub: "Reading document structure and sanitizing payload..." },
+            { pct: 35, stage: "Mapping Role Template...", sub: "Aligning job requirements against position criteria..." },
+            { pct: 60, stage: "AI Rubric Analysis...", sub: "Evaluating Skills, Seniority, Impact, and Education..." },
+            { pct: 82, stage: "Synthesizing Candidate Fit...", sub: "Calculating 4-dimension scores and deductions..." },
+            { pct: 95, stage: "Finalizing Report...", sub: "Formatting profile metrics and hyperlinked credentials..." }
+        ];
+
+        let currentStageIdx = 0;
+        
+        function setStage(s) {
+            if (fill) fill.style.width = `${s.pct}%`;
+            if (percentText) percentText.textContent = `${s.pct}%`;
+            if (stageText) stageText.innerHTML = `${logoSpinSvg} ${s.stage}`;
+            if (subStep) subStep.textContent = s.sub;
+        }
+
+        setStage(stages[0]);
+
+        if (parsingProgressInterval) clearInterval(parsingProgressInterval);
+        parsingProgressInterval = setInterval(() => {
+            if (currentStageIdx < stages.length - 1) {
+                currentStageIdx++;
+                setStage(stages[currentStageIdx]);
+            }
+        }, 1600);
+    }
+
+    function stopParsingProgress() {
+        if (parsingProgressInterval) {
+            clearInterval(parsingProgressInterval);
+            parsingProgressInterval = null;
+        }
+        const fill = document.getElementById("parsing-progress-fill");
+        const percentText = document.getElementById("parsing-percentage-text");
+        if (fill) fill.style.width = "100%";
+        if (percentText) percentText.textContent = "100%";
+    }
+
     uploadForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (selectedFiles.length === 0) return;
+        if (!selectedFiles || selectedFiles.length === 0) return;
 
         // Reset UI States
         emptyResultsState.classList.add("hidden-section");
@@ -549,15 +597,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (batchResultsContainer) batchResultsContainer.classList.add("hidden-section");
         skeletonScreen.classList.remove("hidden-section");
         
+        startParsingProgress();
+
         analyzeBtn.disabled = true;
-        analyzeBtn.innerHTML = `<span class="skeleton-row" style="width: 20px; height: 20px; border-radius: 50%; margin: 0; display: inline-block;"></span> Analyzing...`;
+        analyzeBtn.innerHTML = `
+            <svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.64 5.64l2.83 2.83M15.53 15.53l2.83 2.83M5.64 18.36l2.83-2.83M15.53 8.47l2.83-2.83"/><circle cx="12" cy="3" r="1" fill="currentColor"/><circle cx="12" cy="21" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="21" cy="12" r="1" fill="currentColor"/></svg>
+            Analyzing...
+        `;
 
         const formData = new FormData();
         selectedFiles.forEach(file => {
             formData.append("resume", file);
         });
         formData.append("job_description", jdTextarea.value.trim());
-        // Send the selected template role name so backend can store target_role correctly
         const selectedRoleName = roleSelect ? roleSelect.value.replace(/^★\s*/, '').trim() : '';
         formData.append("selected_role", selectedRoleName);
 
@@ -604,9 +656,10 @@ document.addEventListener("DOMContentLoaded", () => {
             skeletonScreen.classList.add("hidden-section");
             emptyResultsState.classList.remove("hidden-section");
         } finally {
+            stopParsingProgress();
             analyzeBtn.disabled = false;
             analyzeBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.64 5.64l2.83 2.83M15.53 15.53l2.83 2.83M5.64 18.36l2.83-2.83M15.53 8.47l2.83-2.83"/><circle cx="12" cy="3" r="1" fill="currentColor"/><circle cx="12" cy="21" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="21" cy="12" r="1" fill="currentColor"/></svg>
                 Analyze Resume
             `;
             validateForm();
@@ -1327,7 +1380,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     revokeBtn.style.background = "none";
                 });
                 revokeBtn.addEventListener("click", async () => {
-                    const confirmed = await showConfirm(`Are you sure you want to revoke key "<strong>${escapeHtml(k.name)}</strong>"? This action cannot be undone.`, {
+                    const confirmed = await showConfirm(`Are you sure you want to revoke key "${k.name}"? This action cannot be undone.`, {
                         title: "Revoke API Key",
                         confirmText: "Revoke Key",
                         danger: true
